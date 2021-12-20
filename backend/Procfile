@@ -1,0 +1,2 @@
+release: bash ./release_tasks.sh
+web: gunicorn smart_clinic.wsgi

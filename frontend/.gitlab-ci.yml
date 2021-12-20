@@ -1,0 +1,47 @@
+stages:
+  - build
+  - deploy
+build_artifact:
+  variables:
+    REACT_APP_BASE_API_URL: https://vista-backend.herokuapp.com/api
+  image: node:latest
+  stage: build
+  artifacts:
+    paths:
+      - ./build
+    expire_in: 1 day
+  cache:
+    paths:
+      - ./node_modules
+  script:
+    - npm install
+    - npm run build
+  allow_failure: false
+  when: manual
+
+push_image:
+  image: docker:stable
+  stage: build
+  services:
+    - docker:dind
+  dependencies:
+    - build_artifact
+  needs:
+    - job: build_artifact
+  script:
+    - docker login -u _ -p $HEROKU_API_KEY registry.heroku.com
+    - docker build . --tag vista-frontend
+    - docker tag vista-frontend:latest registry.heroku.com/vista-frontend/web
+    - docker push registry.heroku.com/vista-frontend/web
+  allow_failure: false
+  when: manual
+
+deploy:
+  image: buddy/heroku-cli:latest
+  stage: deploy
+  needs:
+    - job: push_image
+  script:
+    - heroku container:release web -a vista-frontend
+    - echo https://vista-frontend.herokuapp.com/
+  when: manual

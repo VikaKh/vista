@@ -1,0 +1,28 @@
+stages:
+  - build
+  - deploy
+build_and_push:
+  image: docker:stable
+  stage: build
+  cache:
+    paths:
+      - /var/lib/docker
+  services:
+    - docker:dind
+  script:
+    - docker login -u _ -p $HEROKU_API_KEY registry.heroku.com
+    - docker build . --tag vista-backend
+    - docker tag vista-backend:latest registry.heroku.com/vista-backend/web
+    - docker push registry.heroku.com/vista-backend/web
+  allow_failure: false
+  when: manual
+
+deploy:
+  image: buddy/heroku-cli:latest
+  stage: deploy
+  needs:
+    - job: build_and_push
+  script:
+    - heroku container:release web -a vista-backend
+    - echo https://vista-backend.herokuapp.com/
+  when: manual
